@@ -15,3 +15,19 @@ Like Linux, the Android operating system is open-source, which means we have the
 Additionally, familiarity with the Java programming language will help follow some of the code examples given throughout this documentation. 
 
 In case there is a need to refresh concepts of Java or study from scratch, [this link](https://docs.oracle.com/javase/tutorial/) can be used. 
+
+![image](https://github.com/vsang181/Andriod-Application-Penetration-testing/assets/28651683/a86773ae-136c-404c-afb1-8d626ff8a0e8)
+
+As can be seen from the image above, there are several general layers in the Android operating system. Each layer has a specialized set of functionalities. 
+
+Each layer builds on the layers beneath it, relying on the security of the lower layers. 
+
+While the device's security as a whole may rely on the lower layers, the device’s data and functionality need to be protected at multiple layers. 
+
+## Let's Connect
+
+I welcome your insights, feedback, and opportunities for collaboration. Together, we can make the digital world safer, one challenge at a time.
+
+- **LinkedIn**: (https://www.linkedin.com/in/aashwadhaama/)
+
+I look forward to connecting with fellow cybersecurity enthusiasts and professionals to share knowledge and work together towards a more secure digital environment.
