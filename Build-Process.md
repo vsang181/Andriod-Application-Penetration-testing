@@ -129,16 +129,139 @@ When auditing an app's source code, it's essential to review all files to determ
 
 ## Code Signing
 
-As mentioned previously, following the build process, `.apk` files need to be signed.
-Andriod devices will not run uinsigned `.apk` files and whether you are building for testing or deployment, the process only varies by which keys are used to sign.
+As mentioned previously, following the build process, `.apk` files need to be signed. Android devices will not run unsigned `.apk` files, and whether you are building for testing or deployment, the process only varies by which keys are used to sign.
 
-.
-.
-.
-.
-.
-.
-_In progress..._
+Public-key cryptography uses two keys: a private key and a public key. These keys are complementary, meaning one key can decrypt data encrypted by the other.
+
+It is crucial that the private key remains secret within an organization, while the public key is intended to be shared.
+
+The fact that one key can decrypt data encrypted by the other is used to verify the authenticity of an encrypted string. This is fundamental to how code signing works.
+
+The public key is often included in a type of digital file known as an x.509 certificate. This certificate can be used to verify the identity of an entity.
+
+The identity is established because the certificate includes information about the organization it belongs to, such as the name of the organization.
+
+To understand how this is ensured, we first need to understand how cryptographic hashes work.
+
+A cryptographic hash function is a special type of hash function where the output is theoretically unique for all inputs. If a single bit is changed in the input, the cryptographic hashing function will produce a completely different output. This fact is often used to verify that something has not been modified or to confirm that two inputs are identical.
+
+Applying this notion that input will always produce the same, unique output, a certificate can be hashed to produce a value.
+
+If this unique value is then encrypted with the private key or "signed," a person wanting to verify the certificate's authenticity can decrypt the encrypted hash using the public key and verify the value against their own hash of the certificate.
+
+If the two hash values match, it confirms that the certificate is legitimate and has not been modified; otherwise, something has gone wrong.
+
+Android apps are cryptographically signed in a similar fashion using a private key known only to the application developer. This process provides several key security-related features by:
+
+- Validating the identity of the author
+- Ensuring the code itself has not been modified after compiling
+
+There have been several Android vulnerabilities identified related to the implementation of this protection.
+
+Unlike other uses of public-key cryptography, there is no need to use CA (Certificate Authority) issued certificates. Self-signed certificates are just fine and no less secure.
+
+Additionally, for Android, the subject name field on a certificate, which usually stores the entity's name, is not validated as part of the identity, nor is the expiration date considered. Android simply uses the certificate as a binary blob.
+
+In part, the need for some of these features is diminished by the way the deployment of applications is accomplished.
+
+The Android code signing process uses public-key cryptography with `x.509` certificates, similar to Java's jar signing process.
+
+The actual process of signing the APK is built into the Android Studio IDE and largely abstracted from the developer.
+
+Despite this fact, it is important to understand the details to know what opportunities exist for abuse and the exact extent of the security it provides.
+
+For example, let's directly use `jarsigner`, which can accomplish the same tasks outside of the IDE. The tool is located in the bin folder of the **Java JDK install**.
+
+Before signing the app, a private key needs to be generated using the `keytool`.
+
+```
+keytool -genkey -v -keystore foo.keystore -alias myalias -keyalg RSA -keysize 2048 -validity 10000
+```
+This example prompts for passwords for the keystore and key and to provide the Distinguished Name fields for the key. It then generates the keystore as a file called `foo.keystore`.
+
+The keystore contains a single key, valid for 10,000 days. The alias is a name that can be used later when signing the app.
+
+The `jarsigner` tool, which can be used to sign or verify a signature, is the same tool used for a traditional Java JAR file.
+
+For example:
+
+```
+jarsigner -sigalg SHA1withRSA -digestalg SHA1 -keystore foo.keystore test.apk myalias
+```
+
+- **sigalg** specifies the signature algorithm used.
+- **digestalg** specifies the digest algorithm used when digesting the file entries.
+- **keystore** specifies a keystore file where the certificate files are stored and the file name to sign.
+- **myalias** represents the alias in the keystore file.
+
+To inspect the signing status of an existing APK:
+
+```
+jarsigner -verify -verbose -certs com.foo.android.activity.apk
+```
+
+Taking a look at an example of the `MANIFEST.MF` file, you can see a list of hashes and files:
+
+```
+Manifest-Version: 1.0
+Created-By: 1.0 (Android)
+Name: res/drawable-hdpi/ab_bg.9.png
+SHA1-Digest: ihAK6Ph6K890IxHTZTDyU9UyYUc=
+Name: res/drawable-xxhdpi/g7/png
+SHA1-Digest: /zW+RqFe/jC0qd4/2NeALMCPTUU=
+...
+```
+
+File hashes can be verified to be correct by using the openssl tool. If the hash matches the hash of the original file, we can be sure it has not been modified.
+
+```
+openssl sha1 -binary res/drawable-hdpi/ab_bg.9.png | openssl base64
+```
+
+The following command can be run to convert the format from DER to PEM and output a file named `cert.pem`:
+
+```
+openssl pkcs7 -inform DER -print_certs -out cert.pem -in CERT.RSA
+```
+
+To see the details for the public key in the certificate, run the following:
+
+```
+openssl x509 -in cert.pem -noout -text
+```
+
+### The Key is the Key
+
+It is extremely important for organizations to protect the private key used to sign their production applications.
+
+If it is ever compromised, there is no way for them to recover from this and continue to have their app users receive updates.
+
+If a key is compromised, the organization will have to sign new versions with a different key, and the Google Play Store will treat it as a completely different app since this is how they identify the organization who signs the app.
+
+Additionally, compromise could theoretically allow an attacker to publish malicious apps that would be trusted as if they were signed by the organization.
+
+This is particularly damaging if the organization has multiple apps that rely on the signing to verify each other's identities.
+
+### Signing Modes
+
+Android Studio has two signing modes:
+
+- **Debug**: Used for testing purposes and is never used to sign applications published to the public. This allows running apps directly connected via USB or on emulators.
+
+- **Release**: Used for apps that are bound for consumer devices.
+
+### APK Alignment
+
+An APK must be aligned after it is signed. This is done using the zipalign tool located in the following directory:
+
+```
+<sdk install_location>/sdk/build-tools/<version>/
+```
+The purpose here is to improve RAM utilization when running the application.
+
+```
+zipalign -v 4 yourproject_unaligned.apk yourproject.apk
+```
 
 ## Let's Connect
 
